@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './LandingPage.module.css';
-import { createRoom, joinRoom } from '../services/roomApi';
+import { createRoom } from '../services/roomApi';
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -28,10 +28,12 @@ export default function LandingPage() {
       });
 
       // Store join token in sessionStorage - not in URL (security)
-      // RoomPage reads it from here and clears it after use
+      // The lobby reuses this token (creator flow); RoomPage clears it after use.
       sessionStorage.setItem(`joinToken:${roomId}`, joinToken);
 
-      navigate(`/room/${roomId}?name=${encodeURIComponent(userName.trim())}`);
+      // Go to the pre-join lobby (not the room directly) so the user can
+      // configure devices, preview their camera, and enable blur first.
+      navigate(`/lobby/${roomId}?name=${encodeURIComponent(userName.trim())}`);
     } catch (err) {
       setError(err.message || 'Failed to create room. Please try again.');
     } finally {
@@ -41,27 +43,9 @@ export default function LandingPage() {
 
   const handleJoin = async () => {
     if (!userName.trim() || !roomId.trim()) return;
-    setLoading(true);
-    clearError();
-    try {
-      const { joinToken } = await joinRoom({
-        roomId: roomId.trim(),
-        userName: userName.trim(),
-        password: password.trim() || undefined,
-      });
-
-      sessionStorage.setItem(`joinToken:${roomId.trim()}`, joinToken);
-
-      navigate(`/room/${roomId.trim()}?name=${encodeURIComponent(userName.trim())}`);
-    } catch (err) {
-      // Map specific HTTP statuses to user-friendly messages
-      if (err.status === 404) setError('Room not found. Check the Room ID and try again.');
-      else if (err.status === 401) setError('Incorrect password.');
-      else if (err.status === 409) setError('This room is full.');
-      else setError(err.message || 'Failed to join room.');
-    } finally {
-      setLoading(false);
-    }
+    // Defer validation, password prompt, and token issuance to the lobby —
+    // the lobby shows the room info and handles password-protected rooms.
+    navigate(`/lobby/${roomId.trim()}?name=${encodeURIComponent(userName.trim())}`);
   };
 
   const handleKey = (e) => {

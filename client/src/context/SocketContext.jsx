@@ -8,7 +8,9 @@ export function SocketProvider({ children }) {
 
   if (!socketRef.current) {
     socketRef.current = io(import.meta.env.VITE_SERVER_URL || "http://localhost:4000", {
-      autoConnect: true,
+      // Don't connect until RoomPage calls socket.connect(). The landing page
+      // and pre-join lobby should not hold an open signaling connection.
+      autoConnect: false,
       reconnection: true,
     });
   }

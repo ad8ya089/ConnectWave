@@ -4,6 +4,7 @@ import { useMedia } from "../hooks/useMedia";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useChat } from "../hooks/useChat";
 import { useSocket } from "../context/SocketContext";
+import { useLobby } from "../context/LobbyContext";
 import VideoGrid from "../components/VideoGrid";
 import Controls from "../components/Controls";
 import ChatPanel from "../components/ChatPanel";
@@ -15,7 +16,10 @@ export default function RoomPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const socket = useSocket();
-  const userName = searchParams.get("name") || "Anonymous";
+  const { lobbyState, clearLobbyState } = useLobby();
+
+  // Prefer the name configured in the lobby; fall back to the URL param.
+  const userName = lobbyState.userName || searchParams.get("name") || "Anonymous";
 
   const {
     localStream,
@@ -29,7 +33,12 @@ export default function RoomPage() {
     startScreenShare,
     stopScreenShare,
     stopAllMedia,
-  } = useMedia();
+  } = useMedia({
+    cameraDeviceId: lobbyState.cameraDeviceId,
+    micDeviceId:    lobbyState.micDeviceId,
+    initialAudioOn: lobbyState.audioEnabled,
+    initialVideoOn: lobbyState.videoEnabled,
+  });
 
   const { remoteStreams, peerQualities } = useWebRTC({ roomId, userName, localStream });
   const { messages, unread, chatOpen, sendMessage, openChat, closeChat } = useChat(roomId, userName);
@@ -40,16 +49,23 @@ export default function RoomPage() {
       const stream = await initMedia();
       if (!stream) return;
 
-      // Read join token from sessionStorage (written by LandingPage after Room Service call)
+      // Read join token from sessionStorage (written by the lobby / LandingPage)
       // Clear it immediately after reading - one-time use
       const tokenKey = `joinToken:${roomId}`;
       const joinToken = sessionStorage.getItem(tokenKey);
       sessionStorage.removeItem(tokenKey);
 
+      // The socket is created with autoConnect:false so the lobby holds no
+      // connection — open it now, right before joining.
+      if (socket && !socket.connected) socket.connect();
+
       // Emit join-room with the token
       // In development (no Room Service running), token will be undefined -
       // the signaling server accepts undefined tokens in non-production mode
       socket.emit("join-room", { roomId, userName, joinToken });
+
+      // Lobby choices have been consumed — clear them.
+      clearLobbyState();
       setJoined(true);
     };
     setup();

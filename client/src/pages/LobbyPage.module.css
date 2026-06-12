@@ -1,0 +1,463 @@
+/* client/src/pages/LobbyPage.module.css */
+
+.page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Background decoration — same orb pattern as LandingPage */
+.bg {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.orb1 {
+  position: absolute;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(62, 207, 207, 0.07) 0%, transparent 70%);
+  top: -100px;
+  left: -100px;
+}
+
+.orb2 {
+  position: absolute;
+  width: 400px;
+  height: 400px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(99, 179, 237, 0.06) 0%, transparent 70%);
+  bottom: -80px;
+  right: -80px;
+}
+
+.back {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  border-radius: var(--radius-sm);
+  padding: 8px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  z-index: 10;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.back:hover {
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+
+/* ── Two-column layout ────────────────────────────────────────────────────── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  width: 100%;
+  max-width: 960px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (max-width: 720px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Left: Preview ────────────────────────────────────────────────────────── */
+
+.previewSection {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.previewWrapper {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--surface-2);
+  aspect-ratio: 16 / 9;
+  border: 1px solid var(--border);
+}
+
+.preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1); /* Mirror effect — more natural for self-view */
+  display: block;
+}
+
+.previewHidden {
+  display: none;
+}
+
+.videoOffOverlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+.avatarCircle {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--bg-3);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* Preview control buttons — overlaid at bottom of preview */
+.previewControls {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  z-index: 2;
+}
+
+.controlBtn {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 255, 255, 0.18);
+  background: rgba(20, 20, 30, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  font-size: 17px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.controlBtn:hover {
+  background: rgba(40, 40, 60, 0.85);
+  transform: scale(1.08);
+}
+
+.controlBtn:active {
+  transform: scale(0.95);
+}
+
+.controlBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.controlOff {
+  background: rgba(220, 60, 60, 0.45);
+  border-color: rgba(220, 60, 60, 0.6);
+}
+
+.controlActive {
+  background: rgba(62, 207, 207, 0.25);
+  border-color: rgba(62, 207, 207, 0.5);
+}
+
+.controlLoading {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* Blur badges */
+.blurBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(62, 207, 207, 0.18);
+  border: 1px solid rgba(62, 207, 207, 0.35);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  backdrop-filter: blur(8px);
+}
+
+.blurErrorBadge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(220, 60, 60, 0.18);
+  border: 1px solid rgba(220, 60, 60, 0.3);
+  color: var(--danger);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.previewError {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  color: var(--text-3);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.previewErrorIcon {
+  font-size: 28px;
+}
+
+/* Device selectors */
+.deviceSelectors {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Right: Join form ─────────────────────────────────────────────────────── */
+
+.joinSection {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 32px;
+}
+
+/* Room info */
+.roomInfo {
+  min-height: 64px;
+}
+
+.roomName {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0 0 8px;
+  line-height: 1.2;
+}
+
+.roomMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.participantCount {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-2);
+}
+
+.countDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  animation: lobbyPulse 2s ease-in-out infinite;
+}
+
+@keyframes lobbyPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.6; transform: scale(0.85); }
+}
+
+.passwordBadge {
+  font-size: 12px;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+.fullBadge {
+  font-size: 12px;
+  color: var(--warn);
+  background: rgba(237, 137, 54, 0.1);
+  border: 1px solid rgba(237, 137, 54, 0.3);
+  border-radius: 20px;
+  padding: 3px 10px;
+}
+
+/* Skeleton loading */
+.roomInfoSkeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.skeletonLine {
+  height: 16px;
+  border-radius: 8px;
+  background: var(--surface-2);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0%   { opacity: 0.4; }
+  50%  { opacity: 0.7; }
+  100% { opacity: 0.4; }
+}
+
+.roomInfoError {
+  color: var(--danger);
+  font-size: 14px;
+  padding: 12px;
+  background: rgba(245, 101, 101, 0.08);
+  border: 1px solid rgba(245, 101, 101, 0.2);
+  border-radius: var(--radius-sm);
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+}
+
+/* Form */
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.formTitle {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+.errorBanner {
+  background: rgba(245, 101, 101, 0.1);
+  border: 1px solid rgba(245, 101, 101, 0.3);
+  border-radius: var(--radius-sm);
+  color: var(--danger);
+  font-size: 13px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+}
+
+.input {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-size: 14px;
+  padding: 10px 14px;
+  transition: border-color 0.15s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Join summary chips */
+.joinSummary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.summaryChip {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-2);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 12px;
+}
+
+.chipOff {
+  color: var(--text-3);
+  text-decoration: line-through;
+  opacity: 0.65;
+}
+
+/* Join button */
+.joinBtn {
+  background: var(--accent);
+  color: #04201f;
+  font-weight: 700;
+  font-size: 15px;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  cursor: pointer;
+  width: 100%;
+  transition: opacity 0.15s, transform 0.1s;
+}
+
+.joinBtn:hover:not(:disabled) {
+  opacity: 0.88;
+}
+
+.joinBtn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.joinBtn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.fullNote {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: center;
+  margin: 0;
+}
