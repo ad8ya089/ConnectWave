@@ -295,6 +295,53 @@ io.on('connection', (socket) => {
     socket.to(roomId).emit('peer-screen-share', { socketId: socket.id, sharing: false });
   });
 
+  // -- Ambient: Focus Timer sync ---------------------------------------------
+  // One participant starts/pauses/resets the shared Pomodoro timer.
+  // The server simply rebroadcasts to all room members including sender
+  // (so the initiator's UI also snaps to the canonical server-relayed state).
+  //
+  // payload: { roomId, action: 'start'|'pause'|'reset', startedAt: timestamp, phase: 'work'|'break' }
+
+  socket.on('ambient-timer-sync', ({ roomId, action, startedAt, phase }) => {
+    if (!roomId) return;
+    // Broadcast to ALL in room (including sender) so everyone is in sync
+    io.to(roomId).emit('ambient-timer-sync', {
+      from: socket.id,
+      action,
+      startedAt,
+      phase,
+      serverTime: Date.now(), // client uses this to correct for clock drift
+    });
+  });
+
+  // -- Ambient: Reaction pulse -----------------------------------------------
+  // A participant sends a ripple/emoji reaction.
+  // payload: { roomId, emoji: string }
+
+  socket.on('ambient-reaction', ({ roomId, emoji }) => {
+    if (!roomId || !emoji) return;
+    const safeEmoji = String(emoji).slice(0, 8); // limit emoji string length
+    io.to(roomId).emit('ambient-reaction', {
+      from: socket.id,
+      emoji: safeEmoji,
+      timestamp: Date.now(),
+    });
+  });
+
+  // -- Ambient: Status message -----------------------------------------------
+  // Short floating status that fades out after a few seconds on all clients.
+  // payload: { roomId, message: string }
+
+  socket.on('ambient-status', ({ roomId, message }) => {
+    if (!roomId || !message) return;
+    const safeMessage = String(message).slice(0, 40);
+    io.to(roomId).emit('ambient-status', {
+      from: socket.id,
+      message: safeMessage,
+      timestamp: Date.now(),
+    });
+  });
+
   // -- Disconnect ------------------------------------------------------------
 
   socket.on('disconnect', async (reason) => {

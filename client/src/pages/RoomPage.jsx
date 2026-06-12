@@ -1,14 +1,17 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useMedia } from "../hooks/useMedia";
 import { useWebRTC } from "../hooks/useWebRTC";
 import { useChat } from "../hooks/useChat";
+import { useAmbientMode } from "../hooks/useAmbientMode";
+import { useAudioAtmosphere } from "../hooks/useAudioAtmosphere";
 import { useSocket } from "../context/SocketContext";
 import { useLobby } from "../context/LobbyContext";
 import VideoGrid from "../components/VideoGrid";
 import Controls from "../components/Controls";
 import ChatPanel from "../components/ChatPanel";
 import RoomHeader from "../components/RoomHeader";
+import AmbientOverlay from "../components/AmbientOverlay";
 import styles from "./RoomPage.module.css";
 
 export default function RoomPage() {
@@ -43,6 +46,60 @@ export default function RoomPage() {
   const { remoteStreams, peerQualities } = useWebRTC({ roomId, userName, localStream });
   const { messages, unread, chatOpen, sendMessage, openChat, closeChat } = useChat(roomId, userName);
   const [joined, setJoined] = useState(false);
+
+  // ── Ambient mode ──────────────────────────────────────────────────────────
+  const {
+    ambientEnabled,
+    toggleAmbient,
+    timerPhase,
+    timerRunning,
+    timerRemaining,
+    startTimer,
+    pauseTimer,
+    resetTimer,
+    activeReactions,
+    sendReaction,
+    activeStatuses,
+    sendStatus,
+  } = useAmbientMode(socket, roomId);
+
+  const {
+    connectPeerAudio,
+    disconnectPeerAudio,
+    togglePeerClarity,
+    peerClarityMap,
+  } = useAudioAtmosphere(ambientEnabled);
+
+  // remoteStreams is { socketId: { stream, userName, ... } }. Ambient components
+  // want a plain socketId -> MediaStream map and a socketId -> { userName } map.
+  const remoteStreamMap = useMemo(() => {
+    const map = {};
+    Object.entries(remoteStreams).forEach(([id, info]) => {
+      if (info?.stream) map[id] = info.stream;
+    });
+    return map;
+  }, [remoteStreams]);
+
+  const peers = useMemo(() => {
+    const map = {};
+    Object.entries(remoteStreams).forEach(([id, info]) => {
+      map[id] = { userName: info?.userName || "Peer" };
+    });
+    return map;
+  }, [remoteStreams]);
+
+  // Route peer audio through the Web Audio atmosphere pipeline only while
+  // ambient mode is active. When it's off, the VideoGrid <video> elements play
+  // the audio normally; during ambient we mute them (mutedRemote) so audio
+  // flows solely through the filtered pipeline (no double playback).
+  useEffect(() => {
+    if (!ambientEnabled) return;
+    const ids = Object.keys(remoteStreamMap);
+    ids.forEach((id) => connectPeerAudio(id, remoteStreamMap[id]));
+    return () => {
+      ids.forEach((id) => disconnectPeerAudio(id));
+    };
+  }, [ambientEnabled, remoteStreamMap, connectPeerAudio, disconnectPeerAudio]);
 
   useEffect(() => {
     const setup = async () => {
@@ -118,40 +175,69 @@ export default function RoomPage() {
   }
 
   return (
-    <div className={styles.page}>
-      <RoomHeader roomId={roomId} userName={userName} peerCount={Object.keys(remoteStreams).length} />
-
-      <div className={styles.body}>
-        <VideoGrid
+    <>
+      {/* Ambient overlay — rendered on top of everything when active */}
+      {ambientEnabled && (
+        <AmbientOverlay
           localStream={localStream}
-          localName={userName}
-          remoteStreams={remoteStreams}
+          localUserName={userName}
+          mySocketId={socket?.id}
+          remoteStreams={remoteStreamMap}
+          peers={peers}
+          peerClarityMap={peerClarityMap}
+          onClarityToggle={togglePeerClarity}
+          activeReactions={activeReactions}
+          onSendReaction={sendReaction}
+          activeStatuses={activeStatuses}
+          onSendStatus={sendStatus}
+          timerPhase={timerPhase}
+          timerRunning={timerRunning}
+          timerRemaining={timerRemaining}
+          onTimerStart={startTimer}
+          onTimerPause={pauseTimer}
+          onTimerReset={resetTimer}
+          onExit={toggleAmbient}
+        />
+      )}
+
+      <div className={styles.page}>
+        <RoomHeader roomId={roomId} userName={userName} peerCount={Object.keys(remoteStreams).length} />
+
+        <div className={styles.body}>
+          <VideoGrid
+            localStream={localStream}
+            localName={userName}
+            remoteStreams={remoteStreams}
+            audioEnabled={audioEnabled}
+            videoEnabled={videoEnabled}
+            peerQualities={peerQualities}
+            mutedRemote={ambientEnabled}
+          />
+          {chatOpen && (
+            <ChatPanel
+              messages={messages}
+              onSend={sendMessage}
+              onClose={closeChat}
+              mySocketId={socket?.id}
+            />
+          )}
+        </div>
+
+        <Controls
           audioEnabled={audioEnabled}
           videoEnabled={videoEnabled}
-          peerQualities={peerQualities}
+          isScreenSharing={isScreenSharing}
+          unread={unread}
+          chatOpen={chatOpen}
+          onToggleAudio={handleToggleAudio}
+          onToggleVideo={handleToggleVideo}
+          onScreenShare={handleScreenShare}
+          onToggleChat={chatOpen ? closeChat : openChat}
+          onLeave={handleLeave}
+          ambientEnabled={ambientEnabled}
+          onToggleAmbient={toggleAmbient}
         />
-        {chatOpen && (
-          <ChatPanel
-            messages={messages}
-            onSend={sendMessage}
-            onClose={closeChat}
-            mySocketId={socket?.id}
-          />
-        )}
       </div>
-
-      <Controls
-        audioEnabled={audioEnabled}
-        videoEnabled={videoEnabled}
-        isScreenSharing={isScreenSharing}
-        unread={unread}
-        chatOpen={chatOpen}
-        onToggleAudio={handleToggleAudio}
-        onToggleVideo={handleToggleVideo}
-        onScreenShare={handleScreenShare}
-        onToggleChat={chatOpen ? closeChat : openChat}
-        onLeave={handleLeave}
-      />
-    </div>
+    </>
   );
 }

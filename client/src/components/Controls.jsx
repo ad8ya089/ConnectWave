@@ -22,6 +22,8 @@ export default function Controls({
   onScreenShare,
   onToggleChat,
   onLeave,
+  ambientEnabled,
+  onToggleAmbient,
 }) {
   return (
     <div className={styles.bar}>
@@ -77,6 +79,16 @@ export default function Controls({
       </button>
 
       <div className={styles.group}>
+        <Btn
+          onClick={onToggleAmbient}
+          active={ambientEnabled}
+          title={ambientEnabled ? "Exit Ambient Mode" : "Enter Ambient Mode"}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </Btn>
+
         <Btn onClick={onToggleChat} active={chatOpen} badge={chatOpen ? 0 : unread} title="Chat">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />

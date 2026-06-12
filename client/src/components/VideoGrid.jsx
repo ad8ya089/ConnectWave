@@ -57,7 +57,7 @@ function VideoTile({
   );
 }
 
-export default function VideoGrid({ localStream, localName, remoteStreams, audioEnabled, videoEnabled, peerQualities = {} }) {
+export default function VideoGrid({ localStream, localName, remoteStreams, audioEnabled, videoEnabled, peerQualities = {}, mutedRemote = false }) {
   const peers = Object.entries(remoteStreams);
   const totalCount = 1 + peers.length;
 
@@ -87,6 +87,7 @@ export default function VideoGrid({ localStream, localName, remoteStreams, audio
             key={socketId}
             stream={stream}
             name={userName || "Peer"}
+            muted={mutedRemote}
             audioEnabled={peerAudio}
             videoEnabled={peerVideo}
             quality={qualityInfo.quality || "idle"}
