@@ -1,0 +1,75 @@
+/* client/src/components/ConnectionBadge.module.css */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid transparent;
+  pointer-events: none;
+  user-select: none;
+  white-space: nowrap;
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+/* Signal dots */
+.icon {
+  font-size: 8px;
+  letter-spacing: 1px;
+}
+
+.label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.rtt {
+  font-size: 9px;
+  opacity: 0.75;
+}
+
+/* ── Quality colors ─────────────────────────────────────────────────────── */
+
+.good {
+  background: rgba(72, 199, 116, 0.18);
+  border-color: rgba(72, 199, 116, 0.35);
+  color: #48c774;
+}
+
+.fair {
+  background: rgba(255, 184, 0, 0.18);
+  border-color: rgba(255, 184, 0, 0.35);
+  color: #ffb800;
+}
+
+.poor {
+  background: rgba(255, 99, 72, 0.18);
+  border-color: rgba(255, 99, 72, 0.35);
+  color: #ff6348;
+  animation: pulse 1.8s ease-in-out infinite;
+}
+
+.failed {
+  background: rgba(245, 70, 70, 0.22);
+  border-color: rgba(245, 70, 70, 0.45);
+  color: #f54646;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+.neutral {
+  background: rgba(180, 180, 200, 0.12);
+  border-color: rgba(180, 180, 200, 0.25);
+  color: rgba(220, 220, 240, 0.7);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.55; }
+}

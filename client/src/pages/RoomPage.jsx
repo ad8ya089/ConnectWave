@@ -31,20 +31,39 @@ export default function RoomPage() {
     stopAllMedia,
   } = useMedia();
 
-  const { remoteStreams } = useWebRTC({ roomId, userName, localStream });
+  const { remoteStreams, peerQualities } = useWebRTC({ roomId, userName, localStream });
   const { messages, unread, chatOpen, sendMessage, openChat, closeChat } = useChat(roomId, userName);
   const [joined, setJoined] = useState(false);
 
   useEffect(() => {
     const setup = async () => {
       const stream = await initMedia();
-      if (stream) {
-        socket.emit("join-room", { roomId, userName });
-        setJoined(true);
-      }
+      if (!stream) return;
+
+      // Read join token from sessionStorage (written by LandingPage after Room Service call)
+      // Clear it immediately after reading - one-time use
+      const tokenKey = `joinToken:${roomId}`;
+      const joinToken = sessionStorage.getItem(tokenKey);
+      sessionStorage.removeItem(tokenKey);
+
+      // Emit join-room with the token
+      // In development (no Room Service running), token will be undefined -
+      // the signaling server accepts undefined tokens in non-production mode
+      socket.emit("join-room", { roomId, userName, joinToken });
+      setJoined(true);
     };
     setup();
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!socket) return;
+    const handleRoomFull = ({ max }) => {
+      alert(`This room is full (max ${max} participants). Please try again later.`);
+      navigate("/");
+    };
+    socket.on("room-full", handleRoomFull);
+    return () => socket.off("room-full", handleRoomFull);
+  }, [socket, navigate]);
 
   const handleLeave = useCallback(() => {
     stopAllMedia();
@@ -93,6 +112,7 @@ export default function RoomPage() {
           remoteStreams={remoteStreams}
           audioEnabled={audioEnabled}
           videoEnabled={videoEnabled}
+          peerQualities={peerQualities}
         />
         {chatOpen && (
           <ChatPanel

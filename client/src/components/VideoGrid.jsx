@@ -1,7 +1,17 @@
 import { useRef, useEffect } from "react";
 import styles from "./VideoGrid.module.css";
+import ConnectionBadge from "./ConnectionBadge";
 
-function VideoTile({ stream, name, muted = false, audioEnabled = true, videoEnabled = true, isLocal = false }) {
+function VideoTile({
+  stream,
+  name,
+  muted = false,
+  audioEnabled = true,
+  videoEnabled = true,
+  isLocal = false,
+  quality = "idle",
+  rtt = null,
+}) {
   const videoRef = useRef(null);
 
   useEffect(() => {
@@ -37,11 +47,17 @@ function VideoTile({ stream, name, muted = false, audioEnabled = true, videoEnab
         )}
       </div>
       {!audioEnabled && <div className={styles.mutedBar} />}
+      {/* Connection quality badge — remote peers only, top-right corner */}
+      {!isLocal && quality && (
+        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}>
+          <ConnectionBadge quality={quality} rtt={rtt} />
+        </div>
+      )}
     </div>
   );
 }
 
-export default function VideoGrid({ localStream, localName, remoteStreams, audioEnabled, videoEnabled }) {
+export default function VideoGrid({ localStream, localName, remoteStreams, audioEnabled, videoEnabled, peerQualities = {} }) {
   const peers = Object.entries(remoteStreams);
   const totalCount = 1 + peers.length;
 
@@ -64,15 +80,20 @@ export default function VideoGrid({ localStream, localName, remoteStreams, audio
         videoEnabled={videoEnabled}
         isLocal
       />
-      {peers.map(([socketId, { stream, userName, audioEnabled: peerAudio = true, videoEnabled: peerVideo = true }]) => (
-        <VideoTile
-          key={socketId}
-          stream={stream}
-          name={userName || "Peer"}
-          audioEnabled={peerAudio}
-          videoEnabled={peerVideo}
-        />
-      ))}
+      {peers.map(([socketId, { stream, userName, audioEnabled: peerAudio = true, videoEnabled: peerVideo = true }]) => {
+        const qualityInfo = peerQualities[socketId] || {};
+        return (
+          <VideoTile
+            key={socketId}
+            stream={stream}
+            name={userName || "Peer"}
+            audioEnabled={peerAudio}
+            videoEnabled={peerVideo}
+            quality={qualityInfo.quality || "idle"}
+            rtt={qualityInfo.rtt ?? null}
+          />
+        );
+      })}
     </div>
   );
 }

@@ -1,0 +1,32 @@
+# docker-compose.prod.yml
+version: "3.9"
+
+services:
+  redis:
+    ports: []   # Do NOT expose Redis port in production
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+    command: >
+      redis-server
+      --appendonly yes
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --requirepass ${REDIS_PASSWORD}
+
+  signaling:
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
+      CLIENT_URL: ${CLIENT_URL}
+      MAX_PEERS_PER_ROOM: ${MAX_PEERS_PER_ROOM:-12}
+    ports: []   # Do NOT expose signaling port directly - go through nginx only
+    deploy:
+      replicas: 2   # Run two signaling instances
+      restart_policy:
+        condition: on-failure
+        max_attempts: 3
+
+  nginx:
+    ports:
+      - "80:80"
+      - "443:443"

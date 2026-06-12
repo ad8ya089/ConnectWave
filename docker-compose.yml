@@ -1,0 +1,174 @@
+# docker-compose.yml
+version: "3.9"
+
+services:
+
+  # -- Postgres --------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    container_name: connectwave-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: connectwave
+    ports:
+      - "5432:5432"        # Exposed for local debugging (pgAdmin, psql)
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d connectwave"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # -- Redis -----------------------------------------------------------------
+  redis:
+    image: redis:7.2-alpine
+    container_name: connectwave-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Coturn TURN server ───────────────────────────────────────────────────
+  coturn:
+    image: coturn/coturn:4.6-alpine
+    container_name: connectwave-coturn
+    restart: unless-stopped
+    network_mode: host
+    # network_mode: host is intentional for TURN servers.
+    # TURN relays UDP media between peers. If coturn runs in a Docker bridge
+    # network, Docker NATs the source IPs of relayed packets, which breaks
+    # the ICE candidate address resolution that WebRTC relies on.
+    # host networking gives coturn direct access to the host network stack
+    # so relayed addresses are correct.
+    #
+    # TRADE-OFF: host networking means coturn shares the host's network namespace
+    # and you can't use Docker service discovery (other services reach it via
+    # the host IP, not container name). In production on a VPS, this is correct.
+    # In local dev, TURN relay is rarely needed — STUN is sufficient for
+    # same-machine testing.
+    volumes:
+      - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --static-auth-secret=${TURN_SECRET:-dev-turn-secret-change-in-production}
+    environment:
+      TURN_SECRET: ${TURN_SECRET:-dev-turn-secret-change-in-production}
+    healthcheck:
+      test: ["CMD-SHELL", "turnutils_stunclient 127.0.0.1 || exit 0"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # -- Room Service ----------------------------------------------------------
+  room-service:
+    build:
+      context: ./room-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4001
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connectwave
+      JWT_SECRET: dev-secret-change-in-production
+      JOIN_TOKEN_TTL_SEC: 300
+      CLIENT_URL: http://localhost:5173
+      MAX_PEERS_PER_ROOM: 12
+      ROOM_ID_LENGTH: 8
+      TURN_SECRET: ${TURN_SECRET:-dev-turn-secret-change-in-production}
+      TURN_HOST: ${TURN_HOST:-localhost}
+      TURN_PORT: ${TURN_PORT:-3478}
+      TURN_TTL_SEC: 3600
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4001:4001"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4001/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
+  # -- Signaling Server ------------------------------------------------------
+  signaling:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      REDIS_URL: redis://redis:6379
+      CLIENT_URL: http://localhost:5173
+      JWT_SECRET: dev-secret-change-in-production
+      MAX_PEERS_PER_ROOM: 12
+      ROOM_TTL_SECONDS: 86400
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+
+  # -- Nginx -----------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    container_name: connectwave-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - signaling
+      - room-service
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost/nginx-health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  # -- Client (staging only) -------------------------------------------------
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        VITE_SERVER_URL: http://localhost:80
+        VITE_ROOM_SERVICE_URL: http://localhost:80
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    depends_on:
+      - nginx
+    profiles:
+      - staging
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  default:
+    name: connectwave-network
