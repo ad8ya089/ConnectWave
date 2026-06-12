@@ -1,18 +1,25 @@
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { useMedia } from "../hooks/useMedia";
-import { useWebRTC } from "../hooks/useWebRTC";
-import { useChat } from "../hooks/useChat";
-import { useAmbientMode } from "../hooks/useAmbientMode";
-import { useAudioAtmosphere } from "../hooks/useAudioAtmosphere";
-import { useSocket } from "../context/SocketContext";
-import { useLobby } from "../context/LobbyContext";
-import VideoGrid from "../components/VideoGrid";
-import Controls from "../components/Controls";
-import ChatPanel from "../components/ChatPanel";
-import RoomHeader from "../components/RoomHeader";
-import AmbientOverlay from "../components/AmbientOverlay";
-import styles from "./RoomPage.module.css";
+// client/src/pages/RoomPage.jsx
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import styles from './RoomPage.module.css';
+
+import { useMedia }            from '../hooks/useMedia';
+import { useWebRTC }           from '../hooks/useWebRTC';
+import { useChat }             from '../hooks/useChat';
+import { useAmbientMode }      from '../hooks/useAmbientMode';
+import { useAudioAtmosphere }  from '../hooks/useAudioAtmosphere';
+import { useSpeakerDetection } from '../hooks/useSpeakerDetection';
+import { useTheme }            from '../hooks/useTheme';
+import { useLobby }            from '../context/LobbyContext';
+import { useSocket }           from '../context/SocketContext';
+import { getRoomInfo }         from '../services/roomApi';
+
+import RoomHeader         from '../components/RoomHeader';
+import VideoGrid          from '../components/VideoGrid';
+import ControlsBar        from '../components/ControlsBar';
+import ParticipantSidebar from '../components/ParticipantSidebar';
+import ChatPanel          from '../components/ChatPanel';
+import AmbientOverlay     from '../components/AmbientOverlay';
 
 export default function RoomPage() {
   const { roomId } = useParams();
@@ -20,22 +27,33 @@ export default function RoomPage() {
   const navigate = useNavigate();
   const socket = useSocket();
   const { lobbyState, clearLobbyState } = useLobby();
+  const { theme, toggleTheme } = useTheme();
 
-  // Prefer the name configured in the lobby; fall back to the URL param.
-  const userName = lobbyState.userName || searchParams.get("name") || "Anonymous";
+  const userName = lobbyState.userName || searchParams.get('name') || 'Anonymous';
+
+  const joinTokenRef = useRef(sessionStorage.getItem(`joinToken:${roomId}`) || '');
+
+  const [roomName, setRoomName] = useState('');
+  const [joined, setJoined] = useState(false);
+  const [peers, setPeers] = useState({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const unreadBaselineRef = useRef(0);
+  const unreadInitRef = useRef(false);
 
   const {
     localStream,
+    initMedia,
+    stopAllMedia,
     audioEnabled,
     videoEnabled,
     isScreenSharing,
     error,
-    initMedia,
     toggleAudio,
     toggleVideo,
     startScreenShare,
     stopScreenShare,
-    stopAllMedia,
   } = useMedia({
     cameraDeviceId: lobbyState.cameraDeviceId,
     micDeviceId:    lobbyState.micDeviceId,
@@ -45,63 +63,6 @@ export default function RoomPage() {
 
   const { remoteStreams, peerQualities } = useWebRTC({ roomId, userName, localStream });
 
-  // The join token is consumed (removed from sessionStorage) by the setup effect
-  // below. Capture it during the first render so the Chat Service connection can
-  // present it for auth even after it's cleared.
-  const joinTokenRef = useRef(sessionStorage.getItem(`joinToken:${roomId}`) || "");
-
-  const {
-    messages,
-    typingDisplay,
-    historyLoading,
-    loadingMore,
-    hasMore,
-    chatError,
-    chatSocketId,
-    sendMessage,
-    onTyping,
-    sendReaction: sendChatReaction,
-    sendReadReceipt,
-    loadMoreHistory,
-  } = useChat({
-    roomId,
-    userName,
-    joinToken: joinTokenRef.current,
-  });
-
-  // Chat panel open/unread state lives here now that useChat focuses purely on
-  // the Chat Service connection.
-  const [chatOpen, setChatOpen] = useState(false);
-  const [unread, setUnread] = useState(0);
-  const unreadBaselineRef = useRef(0);
-  const unreadInitRef = useRef(false);
-
-  // Count messages that arrive while the chat panel is closed. Skip the initial
-  // history load so freshly loaded history doesn't register as unread.
-  useEffect(() => {
-    if (historyLoading) return;
-    if (!unreadInitRef.current) {
-      unreadInitRef.current = true;
-      unreadBaselineRef.current = messages.length;
-      return;
-    }
-    if (messages.length > unreadBaselineRef.current) {
-      if (!chatOpen) {
-        setUnread((n) => n + (messages.length - unreadBaselineRef.current));
-      }
-      unreadBaselineRef.current = messages.length;
-    }
-  }, [messages.length, historyLoading, chatOpen]);
-
-  const openChat = useCallback(() => {
-    setChatOpen(true);
-    setUnread(0);
-  }, []);
-  const closeChat = useCallback(() => setChatOpen(false), []);
-
-  const [joined, setJoined] = useState(false);
-
-  // ── Ambient mode ──────────────────────────────────────────────────────────
   const {
     ambientEnabled,
     toggleAmbient,
@@ -117,15 +78,6 @@ export default function RoomPage() {
     sendStatus,
   } = useAmbientMode(socket, roomId);
 
-  const {
-    connectPeerAudio,
-    disconnectPeerAudio,
-    togglePeerClarity,
-    peerClarityMap,
-  } = useAudioAtmosphere(ambientEnabled);
-
-  // remoteStreams is { socketId: { stream, userName, ... } }. Ambient components
-  // want a plain socketId -> MediaStream map and a socketId -> { userName } map.
   const remoteStreamMap = useMemo(() => {
     const map = {};
     Object.entries(remoteStreams).forEach(([id, info]) => {
@@ -134,18 +86,63 @@ export default function RoomPage() {
     return map;
   }, [remoteStreams]);
 
-  const peers = useMemo(() => {
-    const map = {};
-    Object.entries(remoteStreams).forEach(([id, info]) => {
-      map[id] = { userName: info?.userName || "Peer" };
-    });
-    return map;
-  }, [remoteStreams]);
+  const { activeSpeakerId } = useSpeakerDetection({
+    remoteStreams: remoteStreamMap,
+    localStream,
+    mySocketId: socket?.id,
+    enabled: joined && !ambientEnabled,
+  });
 
-  // Route peer audio through the Web Audio atmosphere pipeline only while
-  // ambient mode is active. When it's off, the VideoGrid <video> elements play
-  // the audio normally; during ambient we mute them (mutedRemote) so audio
-  // flows solely through the filtered pipeline (no double playback).
+  const {
+    connectPeerAudio,
+    disconnectPeerAudio,
+    togglePeerClarity,
+    peerClarityMap,
+  } = useAudioAtmosphere(ambientEnabled);
+
+  const {
+    messages,
+    typingDisplay,
+    historyLoading,
+    loadingMore,
+    hasMore,
+    chatSocketId,
+    sendMessage,
+    onTyping,
+    sendReaction: sendChatReaction,
+    sendReadReceipt,
+    loadMoreHistory,
+  } = useChat({
+    roomId,
+    userName,
+    joinToken: joinTokenRef.current,
+  });
+
+  useEffect(() => {
+    if (historyLoading) return;
+    if (!unreadInitRef.current) {
+      unreadInitRef.current = true;
+      unreadBaselineRef.current = messages.length;
+      return;
+    }
+    if (messages.length > unreadBaselineRef.current) {
+      if (!chatOpen) {
+        setUnreadCount((c) => c + (messages.length - unreadBaselineRef.current));
+      }
+      unreadBaselineRef.current = messages.length;
+    }
+  }, [messages.length, historyLoading, chatOpen]);
+
+  useEffect(() => {
+    if (chatOpen) setUnreadCount(0);
+  }, [chatOpen]);
+
+  useEffect(() => {
+    getRoomInfo(roomId)
+      .then((data) => setRoomName(data.name || ''))
+      .catch(() => {});
+  }, [roomId]);
+
   useEffect(() => {
     if (!ambientEnabled) return;
     const ids = Object.keys(remoteStreamMap);
@@ -158,24 +155,14 @@ export default function RoomPage() {
   useEffect(() => {
     const setup = async () => {
       const stream = await initMedia();
-      if (!stream) return;
+      if (!stream || !socket) return;
 
-      // Read join token from sessionStorage (written by the lobby / LandingPage)
-      // Clear it immediately after reading - one-time use
       const tokenKey = `joinToken:${roomId}`;
       const joinToken = sessionStorage.getItem(tokenKey);
       sessionStorage.removeItem(tokenKey);
 
-      // The socket is created with autoConnect:false so the lobby holds no
-      // connection — open it now, right before joining.
-      if (socket && !socket.connected) socket.connect();
-
-      // Emit join-room with the token
-      // In development (no Room Service running), token will be undefined -
-      // the signaling server accepts undefined tokens in non-production mode
-      socket.emit("join-room", { roomId, userName, joinToken });
-
-      // Lobby choices have been consumed — clear them.
+      if (!socket.connected) socket.connect();
+      socket.emit('join-room', { roomId, userName, joinToken });
       clearLobbyState();
       setJoined(true);
     };
@@ -184,60 +171,152 @@ export default function RoomPage() {
 
   useEffect(() => {
     if (!socket) return;
-    const handleRoomFull = ({ max }) => {
-      alert(`This room is full (max ${max} participants). Please try again later.`);
-      navigate("/");
-    };
-    socket.on("room-full", handleRoomFull);
-    return () => socket.off("room-full", handleRoomFull);
-  }, [socket, navigate]);
 
-  const handleLeave = useCallback(() => {
-    stopAllMedia();
-    socket.disconnect();
-    navigate("/");
-  }, [stopAllMedia, socket, navigate]);
+    const handleUserJoined = ({ socketId, userName: peerName }) => {
+      setPeers((prev) => ({
+        ...prev,
+        [socketId]: {
+          userName:      peerName,
+          audioEnabled:  true,
+          videoEnabled:  true,
+          screenSharing: false,
+        },
+      }));
+    };
+
+    const handleUserLeft = ({ socketId }) => {
+      setPeers((prev) => {
+        const next = { ...prev };
+        delete next[socketId];
+        return next;
+      });
+      disconnectPeerAudio(socketId);
+    };
+
+    const handleRoomPeers = (peerList) => {
+      const peerMap = {};
+      peerList.forEach(({ socketId, userName: peerName }) => {
+        peerMap[socketId] = {
+          userName:      peerName,
+          audioEnabled:  true,
+          videoEnabled:  true,
+          screenSharing: false,
+        };
+      });
+      setPeers(peerMap);
+    };
+
+    const handlePeerAudioToggle = ({ socketId, enabled }) => {
+      setPeers((prev) => ({
+        ...prev,
+        [socketId]: { ...prev[socketId], audioEnabled: enabled },
+      }));
+    };
+
+    const handlePeerVideoToggle = ({ socketId, enabled }) => {
+      setPeers((prev) => ({
+        ...prev,
+        [socketId]: { ...prev[socketId], videoEnabled: enabled },
+      }));
+    };
+
+    const handlePeerScreenShare = ({ socketId, sharing }) => {
+      setPeers((prev) => ({
+        ...prev,
+        [socketId]: { ...prev[socketId], screenSharing: sharing },
+      }));
+    };
+
+    const handleRoomFull = ({ max }) => {
+      alert(`Room is full (${max} participants max). Returning to home.`);
+      navigate('/');
+    };
+
+    socket.on('user-joined', handleUserJoined);
+    socket.on('user-left', handleUserLeft);
+    socket.on('room-peers', handleRoomPeers);
+    socket.on('peer-audio-toggle', handlePeerAudioToggle);
+    socket.on('peer-video-toggle', handlePeerVideoToggle);
+    socket.on('peer-screen-share', handlePeerScreenShare);
+    socket.on('room-full', handleRoomFull);
+
+    return () => {
+      socket.off('user-joined', handleUserJoined);
+      socket.off('user-left', handleUserLeft);
+      socket.off('room-peers', handleRoomPeers);
+      socket.off('peer-audio-toggle', handlePeerAudioToggle);
+      socket.off('peer-video-toggle', handlePeerVideoToggle);
+      socket.off('peer-screen-share', handlePeerScreenShare);
+      socket.off('room-full', handleRoomFull);
+    };
+  }, [socket, navigate, disconnectPeerAudio]);
 
   const handleToggleAudio = () => {
     const enabled = toggleAudio();
-    socket.emit("toggle-audio", { roomId, enabled });
+    socket?.emit('toggle-audio', { roomId, enabled });
   };
 
   const handleToggleVideo = () => {
     const enabled = toggleVideo();
-    socket.emit("toggle-video", { roomId, enabled });
+    socket?.emit('toggle-video', { roomId, enabled });
   };
 
-  const handleScreenShare = async () => {
+  const handleToggleScreen = async () => {
     if (isScreenSharing) {
       stopScreenShare();
-      socket.emit("screen-share-stopped", { roomId });
+      socket?.emit('screen-share-stopped', { roomId });
     } else {
       const stream = await startScreenShare();
-      if (stream) socket.emit("screen-share-started", { roomId });
+      if (stream) socket?.emit('screen-share-started', { roomId });
     }
   };
+
+  const handleLeave = useCallback(() => {
+    stopAllMedia();
+    socket?.disconnect();
+    navigate('/');
+  }, [stopAllMedia, socket, navigate]);
+
+  const connectionStatus = (() => {
+    const qualities = Object.values(peerQualities);
+    if (!qualities.length || !joined) return 'connecting';
+    if (qualities.every((q) => q.quality === 'good')) return 'good';
+    if (qualities.some((q) => q.quality === 'poor')) return 'poor';
+    return 'fair';
+  })();
+
+  const participantCount = 1 + Object.keys(remoteStreams).length;
+
+  const ambientPeers = useMemo(() => {
+    const map = { ...peers };
+    Object.entries(remoteStreams).forEach(([id, info]) => {
+      map[id] = {
+        ...map[id],
+        userName: map[id]?.userName || info?.userName || 'Peer',
+      };
+    });
+    return map;
+  }, [peers, remoteStreams]);
 
   if (error) {
     return (
       <div className={styles.error}>
         <h2>Camera/Mic Access Denied</h2>
         <p>{error}</p>
-        <button onClick={() => navigate("/")}>Go Back</button>
+        <button onClick={() => navigate('/')}>Go Back</button>
       </div>
     );
   }
 
   return (
-    <>
-      {/* Ambient overlay — rendered on top of everything when active */}
+    <div className={styles.room}>
       {ambientEnabled && (
         <AmbientOverlay
           localStream={localStream}
           localUserName={userName}
           mySocketId={socket?.id}
           remoteStreams={remoteStreamMap}
-          peers={peers}
+          peers={ambientPeers}
           peerClarityMap={peerClarityMap}
           onClarityToggle={togglePeerClarity}
           activeReactions={activeReactions}
@@ -254,20 +333,62 @@ export default function RoomPage() {
         />
       )}
 
-      <div className={styles.page}>
-        <RoomHeader roomId={roomId} userName={userName} peerCount={Object.keys(remoteStreams).length} />
+      <RoomHeader
+        roomId={roomId}
+        roomName={roomName}
+        participantCount={participantCount}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+        connectionStatus={connectionStatus}
+      />
 
-        <div className={styles.body}>
+      <div className={styles.content}>
+        <ParticipantSidebar
+          open={sidebarOpen}
+          localUserName={userName}
+          mySocketId={socket?.id}
+          peers={peers}
+          localAudioEnabled={audioEnabled}
+          localVideoEnabled={videoEnabled}
+          localScreenSharing={isScreenSharing}
+          onClose={() => setSidebarOpen(false)}
+        />
+
+        <div className={styles.videoArea}>
           <VideoGrid
             localStream={localStream}
-            localName={userName}
+            localUserName={userName}
+            mySocketId={socket?.id}
+            localAudioEnabled={audioEnabled}
+            localVideoEnabled={videoEnabled}
             remoteStreams={remoteStreams}
-            audioEnabled={audioEnabled}
-            videoEnabled={videoEnabled}
+            peers={peers}
             peerQualities={peerQualities}
+            activeSpeakerId={activeSpeakerId}
             mutedRemote={ambientEnabled}
           />
-          {chatOpen && (
+
+          <ControlsBar
+            audioEnabled={audioEnabled}
+            videoEnabled={videoEnabled}
+            screenSharing={isScreenSharing}
+            ambientEnabled={ambientEnabled}
+            onToggleAudio={handleToggleAudio}
+            onToggleVideo={handleToggleVideo}
+            onToggleScreen={handleToggleScreen}
+            onToggleAmbient={toggleAmbient}
+            onLeave={handleLeave}
+            participantCount={participantCount}
+            onToggleSidebar={() => setSidebarOpen((v) => !v)}
+            sidebarOpen={sidebarOpen}
+            onToggleChat={() => setChatOpen((v) => !v)}
+            chatOpen={chatOpen}
+            unreadCount={unreadCount}
+          />
+        </div>
+
+        {chatOpen && (
+          <div className={styles.chatPane}>
             <ChatPanel
               messages={messages}
               typingDisplay={typingDisplay}
@@ -282,24 +403,9 @@ export default function RoomPage() {
               mySocketId={chatSocketId}
               userName={userName}
             />
-          )}
-        </div>
-
-        <Controls
-          audioEnabled={audioEnabled}
-          videoEnabled={videoEnabled}
-          isScreenSharing={isScreenSharing}
-          unread={unread}
-          chatOpen={chatOpen}
-          onToggleAudio={handleToggleAudio}
-          onToggleVideo={handleToggleVideo}
-          onScreenShare={handleScreenShare}
-          onToggleChat={chatOpen ? closeChat : openChat}
-          onLeave={handleLeave}
-          ambientEnabled={ambientEnabled}
-          onToggleAmbient={toggleAmbient}
-        />
+          </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }

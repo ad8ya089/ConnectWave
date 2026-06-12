@@ -1,100 +1,104 @@
-import { useRef, useEffect } from "react";
-import styles from "./VideoGrid.module.css";
-import ConnectionBadge from "./ConnectionBadge";
+// client/src/components/VideoGrid.jsx
+import { useState, useCallback } from 'react';
+import styles    from './VideoGrid.module.css';
+import VideoTile from './VideoTile';
 
-function VideoTile({
-  stream,
-  name,
-  muted = false,
-  audioEnabled = true,
-  videoEnabled = true,
-  isLocal = false,
-  quality = "idle",
-  rtt = null,
+export default function VideoGrid({
+  localStream,
+  localUserName,
+  mySocketId,
+  localAudioEnabled,
+  localVideoEnabled,
+  remoteStreams,
+  peers,
+  peerQualities,
+  activeSpeakerId,
+  mutedRemote = false,
 }) {
-  const videoRef = useRef(null);
+  const [pinnedId, setPinnedId] = useState(null);
 
-  useEffect(() => {
-    if (videoRef.current && stream) {
-      videoRef.current.srcObject = stream;
-    }
-  }, [stream]);
+  const handleDoubleClick = useCallback((socketId) => {
+    setPinnedId((prev) => (prev === socketId ? null : socketId));
+  }, []);
 
-  return (
-    <div className={styles.tile}>
-      {stream && videoEnabled ? (
-        <video
-          ref={videoRef}
-          autoPlay
-          playsInline
-          muted={muted}
-          className={`${styles.video} ${isLocal ? styles.mirrored : ""}`}
+  const localTile = {
+    socketId:     mySocketId || 'local',
+    stream:       localStream,
+    userName:     localUserName,
+    isLocal:      true,
+    audioEnabled: localAudioEnabled,
+    videoEnabled: localVideoEnabled,
+  };
+
+  const remoteTiles = Object.entries(remoteStreams).map(([socketId, info]) => {
+    const streamInfo = info?.stream ? info : { stream: info, userName: 'Peer' };
+    return {
+      socketId,
+      stream:       streamInfo.stream,
+      userName:     peers[socketId]?.userName ?? streamInfo.userName ?? 'Peer',
+      isLocal:      false,
+      audioEnabled: peers[socketId]?.audioEnabled ?? streamInfo.audioEnabled ?? true,
+      videoEnabled: peers[socketId]?.videoEnabled ?? streamInfo.videoEnabled ?? true,
+    };
+  });
+
+  const allTiles = [localTile, ...remoteTiles];
+
+  const effectiveSpotlightId =
+    pinnedId ||
+    (activeSpeakerId && allTiles.length > 1 ? activeSpeakerId : null);
+
+  const isSpotlightMode = !!effectiveSpotlightId;
+
+  const spotlightTile = allTiles.find((t) => t.socketId === effectiveSpotlightId);
+  const stripTiles    = allTiles.filter((t) => t.socketId !== effectiveSpotlightId);
+
+  const renderTile = (tile, inSpotlight = false) => {
+    const qInfo = peerQualities?.[tile.socketId] || {};
+    const speaking = activeSpeakerId === tile.socketId;
+
+    return (
+      <div
+        key={tile.socketId}
+        className={inSpotlight ? styles.spotlightSlot : styles.gridSlot}
+      >
+        <VideoTile
+          stream={tile.stream}
+          userName={tile.userName}
+          isLocal={tile.isLocal}
+          audioEnabled={tile.audioEnabled}
+          videoEnabled={tile.videoEnabled}
+          isSpeaking={speaking}
+          isPinned={pinnedId === tile.socketId}
+          isSpotlight={inSpotlight}
+          onDoubleClick={() => handleDoubleClick(tile.socketId)}
+          quality={qInfo.quality}
+          rtt={qInfo.rtt}
+          muted={!tile.isLocal && mutedRemote}
         />
-      ) : (
-        <div className={styles.avatar}>
-          <span>{name?.[0]?.toUpperCase() || "?"}</span>
-        </div>
-      )}
-      <div className={styles.overlay}>
-        <span className={styles.name}>
-          {name}
-          {isLocal && " (You)"}
-        </span>
-        {!audioEnabled && (
-          <span className={styles.mutedIcon} title="Muted">
-            🔇
-          </span>
-        )}
       </div>
-      {!audioEnabled && <div className={styles.mutedBar} />}
-      {/* Connection quality badge — remote peers only, top-right corner */}
-      {!isLocal && quality && (
-        <div style={{ position: "absolute", top: 8, right: 8, zIndex: 2 }}>
-          <ConnectionBadge quality={quality} rtt={rtt} />
-        </div>
-      )}
-    </div>
-  );
-}
+    );
+  };
 
-export default function VideoGrid({ localStream, localName, remoteStreams, audioEnabled, videoEnabled, peerQualities = {}, mutedRemote = false }) {
-  const peers = Object.entries(remoteStreams);
-  const totalCount = 1 + peers.length;
-
-  const gridClass =
-    totalCount === 1
-      ? styles.grid1
-      : totalCount === 2
-      ? styles.grid2
-      : totalCount <= 4
-      ? styles.grid4
-      : styles.gridMany;
+  if (!isSpotlightMode) {
+    return (
+      <div className={styles.grid}>
+        {allTiles.map((tile) => renderTile(tile, false))}
+      </div>
+    );
+  }
 
   return (
-    <div className={`${styles.grid} ${gridClass}`}>
-      <VideoTile
-        stream={localStream}
-        name={localName}
-        muted
-        audioEnabled={audioEnabled}
-        videoEnabled={videoEnabled}
-        isLocal
-      />
-      {peers.map(([socketId, { stream, userName, audioEnabled: peerAudio = true, videoEnabled: peerVideo = true }]) => {
-        const qualityInfo = peerQualities[socketId] || {};
-        return (
-          <VideoTile
-            key={socketId}
-            stream={stream}
-            name={userName || "Peer"}
-            muted={mutedRemote}
-            audioEnabled={peerAudio}
-            videoEnabled={peerVideo}
-            quality={qualityInfo.quality || "idle"}
-            rtt={qualityInfo.rtt ?? null}
-          />
-        );
-      })}
+    <div className={styles.spotlightLayout}>
+      <div className={styles.spotlightMain}>
+        {spotlightTile && renderTile(spotlightTile, true)}
+      </div>
+
+      {stripTiles.length > 0 && (
+        <div className={styles.strip}>
+          {stripTiles.map((tile) => renderTile(tile, false))}
+        </div>
+      )}
     </div>
   );
 }

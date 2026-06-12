@@ -1,0 +1,109 @@
+/* client/src/styles/theme.css */
+
+/* ── Dark theme (default) ─────────────────────────────────────────────────── */
+:root,
+[data-theme="dark"] {
+  /* Backgrounds */
+  --bg:         #0d0d12;
+  --surface-1:  #13131a;
+  --surface-2:  #1a1a24;
+  --surface-3:  #22222e;
+  --surface-4:  #2a2a38;
+
+  /* Borders */
+  --border:       rgba(255, 255, 255, 0.08);
+  --border-hover: rgba(255, 255, 255, 0.16);
+
+  /* Text */
+  --text-1: rgba(255, 255, 255, 0.95);
+  --text-2: rgba(255, 255, 255, 0.65);
+  --text-3: rgba(255, 255, 255, 0.38);
+
+  /* Brand */
+  --accent:       #00d2be;
+  --accent-dim:   rgba(0, 210, 190, 0.15);
+  --accent-glow:  rgba(0, 210, 190, 0.35);
+
+  /* Semantic */
+  --danger:       #f54646;
+  --danger-dim:   rgba(245, 70, 70, 0.15);
+  --warning:      #ffb800;
+  --success:      #48c774;
+
+  /* Controls */
+  --control-bg:       rgba(20, 20, 30, 0.72);
+  --control-border:   rgba(255, 255, 255, 0.12);
+  --control-off-bg:   rgba(220, 60, 60, 0.55);
+  --control-off-border: rgba(220, 60, 60, 0.7);
+
+  /* Radius */
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.6);
+
+  /* Glass morphism */
+  --glass-bg:     rgba(13, 13, 18, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+/* ── Light theme ──────────────────────────────────────────────────────────── */
+[data-theme="light"] {
+  --bg:         #f0f0f5;
+  --surface-1:  #ffffff;
+  --surface-2:  #f5f5fa;
+  --surface-3:  #ebebf2;
+  --surface-4:  #e0e0ea;
+
+  --border:       rgba(0, 0, 0, 0.09);
+  --border-hover: rgba(0, 0, 0, 0.18);
+
+  --text-1: rgba(0, 0, 0, 0.88);
+  --text-2: rgba(0, 0, 0, 0.55);
+  --text-3: rgba(0, 0, 0, 0.35);
+
+  --accent:       #00a896;
+  --accent-dim:   rgba(0, 168, 150, 0.12);
+  --accent-glow:  rgba(0, 168, 150, 0.3);
+
+  --danger:       #e03131;
+  --danger-dim:   rgba(224, 49, 49, 0.1);
+  --warning:      #e67700;
+  --success:      #2f9e44;
+
+  --control-bg:       rgba(255, 255, 255, 0.82);
+  --control-border:   rgba(0, 0, 0, 0.12);
+  --control-off-bg:   rgba(224, 49, 49, 0.15);
+  --control-off-border: rgba(224, 49, 49, 0.4);
+
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.10);
+  --shadow-md: 0 4px 24px rgba(0, 0, 0, 0.14);
+  --shadow-lg: 0 8px 40px rgba(0, 0, 0, 0.18);
+
+  --glass-bg:     rgba(255, 255, 255, 0.82);
+  --glass-border: rgba(0, 0, 0, 0.1);
+}
+
+/* Legacy aliases — Steps 1–6 components still reference these names */
+:root,
+[data-theme="dark"],
+[data-theme="light"] {
+  --text: var(--text-1);
+  --surface: var(--surface-2);
+  --bg-2: var(--surface-1);
+  --bg-3: var(--surface-3);
+  --accent-2: var(--accent);
+  --warn: var(--warning);
+  --shadow: var(--shadow-md);
+  --shadow-accent: var(--accent-glow);
+  --radius: var(--radius-md);
+  --radius-lg: 20px;
+  --font-display: "Syne", sans-serif;
+  --font-body: "DM Sans", sans-serif;
+}
