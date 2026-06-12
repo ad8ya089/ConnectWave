@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from "react";
+import { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { useMedia } from "../hooks/useMedia";
 import { useWebRTC } from "../hooks/useWebRTC";
@@ -44,7 +44,61 @@ export default function RoomPage() {
   });
 
   const { remoteStreams, peerQualities } = useWebRTC({ roomId, userName, localStream });
-  const { messages, unread, chatOpen, sendMessage, openChat, closeChat } = useChat(roomId, userName);
+
+  // The join token is consumed (removed from sessionStorage) by the setup effect
+  // below. Capture it during the first render so the Chat Service connection can
+  // present it for auth even after it's cleared.
+  const joinTokenRef = useRef(sessionStorage.getItem(`joinToken:${roomId}`) || "");
+
+  const {
+    messages,
+    typingDisplay,
+    historyLoading,
+    loadingMore,
+    hasMore,
+    chatError,
+    chatSocketId,
+    sendMessage,
+    onTyping,
+    sendReaction: sendChatReaction,
+    sendReadReceipt,
+    loadMoreHistory,
+  } = useChat({
+    roomId,
+    userName,
+    joinToken: joinTokenRef.current,
+  });
+
+  // Chat panel open/unread state lives here now that useChat focuses purely on
+  // the Chat Service connection.
+  const [chatOpen, setChatOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const unreadBaselineRef = useRef(0);
+  const unreadInitRef = useRef(false);
+
+  // Count messages that arrive while the chat panel is closed. Skip the initial
+  // history load so freshly loaded history doesn't register as unread.
+  useEffect(() => {
+    if (historyLoading) return;
+    if (!unreadInitRef.current) {
+      unreadInitRef.current = true;
+      unreadBaselineRef.current = messages.length;
+      return;
+    }
+    if (messages.length > unreadBaselineRef.current) {
+      if (!chatOpen) {
+        setUnread((n) => n + (messages.length - unreadBaselineRef.current));
+      }
+      unreadBaselineRef.current = messages.length;
+    }
+  }, [messages.length, historyLoading, chatOpen]);
+
+  const openChat = useCallback(() => {
+    setChatOpen(true);
+    setUnread(0);
+  }, []);
+  const closeChat = useCallback(() => setChatOpen(false), []);
+
   const [joined, setJoined] = useState(false);
 
   // ── Ambient mode ──────────────────────────────────────────────────────────
@@ -216,9 +270,17 @@ export default function RoomPage() {
           {chatOpen && (
             <ChatPanel
               messages={messages}
-              onSend={sendMessage}
-              onClose={closeChat}
-              mySocketId={socket?.id}
+              typingDisplay={typingDisplay}
+              historyLoading={historyLoading}
+              loadingMore={loadingMore}
+              hasMore={hasMore}
+              onSendMessage={sendMessage}
+              onTyping={onTyping}
+              onReact={sendChatReaction}
+              onLoadMore={loadMoreHistory}
+              onReadReceipt={sendReadReceipt}
+              mySocketId={chatSocketId}
+              userName={userName}
             />
           )}
         </div>

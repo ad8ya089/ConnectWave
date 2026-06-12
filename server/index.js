@@ -258,18 +258,11 @@ io.on('connection', (socket) => {
   });
 
   // -- Chat ------------------------------------------------------------------
-
-  socket.on('chat-message', ({ roomId, message, userName }) => {
-    if (!roomId || !message || !userName) return;
-    const safeMessage = String(message).slice(0, 500);
-
-    io.to(roomId).emit('chat-message', {
-      from: socket.id,
-      userName,
-      message: safeMessage,
-      timestamp: Date.now(),
-    });
-  });
+  // Chat is no longer handled here. As of Step 6, all chat-message, typing,
+  // reaction, and read-receipt events live in the dedicated Chat Service
+  // (port 4002, /chat namespace). Keeping chat out of the signaling server
+  // ensures a single source of truth for messages and isolates chat I/O load
+  // from WebRTC signaling latency.
 
   // -- Media state -----------------------------------------------------------
 

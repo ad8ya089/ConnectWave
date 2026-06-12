@@ -103,6 +103,38 @@ services:
       start_period: 20s
       retries: 3
 
+  # ── Chat Service ──────────────────────────────────────────────────────────
+  chat-service:
+    build:
+      context: ./chat-service
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 4002
+      REDIS_URL: redis://redis:6379
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/connectwave
+      JWT_SECRET: dev-secret-change-in-production
+      CLIENT_URL: http://localhost:5173
+      MAX_CACHED_MESSAGES: 100
+      HISTORY_PAGE_SIZE: 50
+      TYPING_TTL_MS: 4000
+      WRITE_RETRY_DELAY_MS: 2000
+      WRITE_MAX_RETRIES: 5
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "4002:4002"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4002/health"]
+      interval: 15s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+
   # -- Signaling Server ------------------------------------------------------
   signaling:
     build:
@@ -141,6 +173,7 @@ services:
     depends_on:
       - signaling
       - room-service
+      - chat-service
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost/nginx-health"]
       interval: 10s
