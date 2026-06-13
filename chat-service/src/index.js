@@ -19,8 +19,10 @@ const registerChatHandler     = require('./socket/chatHandler');
 const app    = express();
 const server = http.createServer(app);
 
+const corsOrigins = [process.env.CLIENT_URL, 'http://localhost:5173'].filter(Boolean);
+
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: config.CLIENT_URL, methods: ['GET', 'POST'] }));
+app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST'] }));
 app.use(express.json());
 
 // ── Health check ──────────────────────────────────────────────────────────────
@@ -54,7 +56,7 @@ app.use((err, req, res, next) => {
 // ── Socket.io ─────────────────────────────────────────────────────────────────
 
 const io = new Server(server, {
-  cors: { origin: config.CLIENT_URL, methods: ['GET', 'POST'] },
+  cors: { origin: corsOrigins, methods: ['GET', 'POST'] },
   connectionStateRecovery: {
     maxDisconnectionDuration: 2 * 60 * 1000,
     skipMiddlewares: true,

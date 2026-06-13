@@ -9,6 +9,8 @@ const helmet = require('helmet');
 
 const config = require('./src/config');
 const logger = require('./src/logger');
+
+const corsOrigins = [process.env.CLIENT_URL, 'http://localhost:5173'].filter(Boolean);
 const { pubClient, subClient } = require('./src/redis');
 const rateLimiter = require('./src/middleware/rateLimiter');
 const { verifyJoinToken } = require('./src/token');
@@ -20,7 +22,7 @@ const { verifyJoinToken } = require('./src/token');
 const app = express();
 
 app.use(helmet({ contentSecurityPolicy: false })); // CSP handled by Nginx
-app.use(cors({ origin: config.CLIENT_URL, methods: ['GET', 'POST'] }));
+app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST'] }));
 app.use(express.json());
 app.use('/api', rateLimiter); // rate limit only REST routes, not socket upgrades
 
@@ -60,7 +62,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: config.CLIENT_URL,
+    origin: corsOrigins,
     methods: ['GET', 'POST'],
   },
   // Connection state recovery: if a client briefly disconnects and reconnects

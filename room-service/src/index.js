@@ -14,8 +14,10 @@ const turnRouter = require('./routes/turn');
 
 const app = express();
 
+const corsOrigins = [process.env.CLIENT_URL, 'http://localhost:5173'].filter(Boolean);
+
 app.use(helmet());
-app.use(cors({ origin: config.CLIENT_URL, methods: ['GET', 'POST'] }));
+app.use(cors({ origin: corsOrigins, methods: ['GET', 'POST'] }));
 app.use(express.json());
 
 // -- Health check --------------------------------------------------------------
