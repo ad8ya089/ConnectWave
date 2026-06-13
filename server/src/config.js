@@ -8,12 +8,16 @@ const required = (key) => {
 
 const optional = (key, fallback) => process.env[key] || fallback;
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 module.exports = {
   NODE_ENV: optional('NODE_ENV', 'development'),
   PORT: parseInt(optional('PORT', '4000'), 10),
 
-  // Redis
-  REDIS_URL: optional('REDIS_URL', 'redis://localhost:6379'),
+  // Redis — required in production (Railway has no localhost Redis)
+  REDIS_URL: isProduction
+    ? required('REDIS_URL')
+    : optional('REDIS_URL', 'redis://localhost:6379'),
 
   // CORS
   CLIENT_URL: optional('CLIENT_URL', 'http://localhost:5173'),
