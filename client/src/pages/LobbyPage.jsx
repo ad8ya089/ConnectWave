@@ -193,11 +193,6 @@ export default function LobbyPage() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
-      <div className={styles.bg}>
-        <div className={styles.orb1} />
-        <div className={styles.orb2} />
-      </div>
-
       <button className={styles.back} onClick={() => navigate('/')}>
         ← Back
       </button>

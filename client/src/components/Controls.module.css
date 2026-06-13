@@ -34,7 +34,7 @@
 }
 
 .btn.active {
-  background: var(--accent-glow);
+  background: var(--accent-dim);
   border-color: var(--accent);
   color: var(--accent);
 }

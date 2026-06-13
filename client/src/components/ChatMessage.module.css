@@ -40,7 +40,7 @@
 
 .ownBubble {
   background: var(--accent);
-  color: #000;
+  color: #ffffff;
   border-bottom-right-radius: 4px;
 }
 
@@ -93,12 +93,11 @@
 .picker {
   display: flex;
   gap: 4px;
-  background: var(--surface);
+  background: var(--surface-1);
   border: 1px solid var(--border);
   border-radius: 24px;
   padding: 6px 10px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
   animation: pickerIn 0.15s ease-out;
   z-index: 10;
 }
@@ -119,7 +118,7 @@
 }
 
 .pickerBtn:hover { transform: scale(1.3); }
-.pickerBtn.reacted { filter: drop-shadow(0 0 4px rgba(0, 210, 190, 0.8)); }
+.pickerBtn.reacted { filter: none; background: var(--accent-dim); border-radius: 50%; }
 
 /* ── Reaction chips ───────────────────────────────────────────────────────── */
 
@@ -146,8 +145,8 @@
 .reactionChip:hover { background: var(--bg-3); }
 
 .reactionChip.reacted {
-  border-color: rgba(0, 210, 190, 0.5);
-  background: rgba(0, 210, 190, 0.1);
+  border-color: var(--accent);
+  background: var(--accent-dim);
 }
 
 .reactionCount {

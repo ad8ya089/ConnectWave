@@ -17,9 +17,11 @@
 }
 
 .title {
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
   color: var(--text);
 }
 

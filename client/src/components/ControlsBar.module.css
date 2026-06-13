@@ -14,12 +14,10 @@
   align-items: center;
   gap: 4px;
   padding: 8px 12px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
+  background: var(--surface-1);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xl);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  box-shadow: var(--shadow-lg), 0 0 0 1px rgba(255,255,255,0.04) inset;
+  box-shadow: var(--shadow-md);
   pointer-events: all;
   transition: background 0.3s ease;
 }
@@ -67,7 +65,7 @@
 
 .btn.active {
   background: var(--accent-dim);
-  border-color: var(--accent-glow);
+  border-color: var(--accent);
   color: var(--accent);
 }
 
@@ -118,7 +116,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 3px;
-  border: 1.5px solid var(--glass-bg);
+  border: 1.5px solid var(--surface-1);
 }
 
 .countBadge {

@@ -1,6 +1,6 @@
 // client/src/services/chatApi.js
 
-const CHAT_SERVICE_URL = import.meta.env.VITE_CHAT_SERVICE_URL || 'http://localhost:4002';
+const CHAT_SERVICE_URL = import.meta.env.VITE_CHAT_SERVICE_URL || '';
 
 const apiFetch = async (path, options = {}) => {
   const res  = await fetch(`${CHAT_SERVICE_URL}${path}`, {

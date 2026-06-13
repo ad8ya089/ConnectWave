@@ -114,7 +114,7 @@ async function addPeerToRoom(roomId, socketId, userName) {
   const multi = pubClient.multi();
   multi.sadd(ROOM_KEY(roomId), socketId);
   multi.expire(ROOM_KEY(roomId), config.ROOM_TTL_SECONDS);
-  multi.hset(SOCKET_META_KEY(socketId), { roomId, userName });
+  multi.hset(SOCKET_META_KEY(socketId), 'roomId', roomId, 'userName', userName);
   multi.expire(SOCKET_META_KEY(socketId), config.ROOM_TTL_SECONDS);
   await multi.exec();
 }

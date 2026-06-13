@@ -1,6 +1,7 @@
 // client/src/services/roomApi.js
 
-const ROOM_SERVICE_URL = import.meta.env.VITE_ROOM_SERVICE_URL || 'http://localhost:4001';
+const ROOM_SERVICE_URL = import.meta.env.VITE_ROOM_SERVICE_URL || '';
+// Empty string means same origin — Vite proxy handles routing in dev
 
 // Generic fetch wrapper with error handling
 const apiFetch = async (path, options = {}) => {

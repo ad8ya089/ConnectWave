@@ -20,13 +20,12 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: 20px;
   padding: 5px 12px;
   font-size: 13px;
   animation: floatIn 0.3s ease-out;
-  backdrop-filter: blur(8px);
   width: fit-content;
 }
 
@@ -112,14 +111,14 @@
 
 .sendBtn {
   background: var(--accent);
-  color: #04201f;
-  font-weight: 700;
+  color: #ffffff;
+  font-weight: 600;
   font-size: 13px;
   border: none;
   border-radius: var(--radius-sm);
   padding: 8px 16px;
   cursor: pointer;
-  transition: opacity 0.15s;
+  transition: background 0.15s;
 }
 
 .sendBtn:disabled {
@@ -128,5 +127,5 @@
 }
 
 .sendBtn:hover:not(:disabled) {
-  opacity: 0.85;
+  background: var(--accent-hover);
 }

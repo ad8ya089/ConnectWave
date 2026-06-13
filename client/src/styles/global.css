@@ -12,6 +12,12 @@ html, body, #root {
   overflow: hidden;
 }
 
+#root {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 body {
   background: var(--bg);
   color: var(--text-1);
@@ -27,7 +33,7 @@ button {
   cursor: pointer;
   border: none;
   outline: none;
-  transition: all 0.2s ease;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 input, textarea, select {
@@ -41,8 +47,8 @@ a {
 }
 
 ::selection {
-  background: var(--accent-glow);
-  color: var(--accent);
+  background: var(--accent-dim);
+  color: var(--text-1);
 }
 
 ::-webkit-scrollbar {
@@ -67,15 +73,4 @@ a {
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 var(--accent-glow); }
-  70% { box-shadow: 0 0 0 12px transparent; }
-  100% { box-shadow: 0 0 0 0 transparent; }
-}
-
-@keyframes wave {
-  0%, 100% { transform: scaleY(0.4); }
-  50% { transform: scaleY(1); }
 }

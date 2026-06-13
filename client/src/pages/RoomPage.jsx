@@ -32,10 +32,12 @@ export default function RoomPage() {
   const userName = lobbyState.userName || searchParams.get('name') || 'Anonymous';
 
   const joinTokenRef = useRef(sessionStorage.getItem(`joinToken:${roomId}`) || '');
+  const screenStreamRef = useRef(null);
 
   const [roomName, setRoomName] = useState('');
   const [joined, setJoined] = useState(false);
   const [peers, setPeers] = useState({});
+  const [screenSharing, setScreenSharing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -48,12 +50,9 @@ export default function RoomPage() {
     stopAllMedia,
     audioEnabled,
     videoEnabled,
-    isScreenSharing,
     error,
     toggleAudio,
     toggleVideo,
-    startScreenShare,
-    stopScreenShare,
   } = useMedia({
     cameraDeviceId: lobbyState.cameraDeviceId,
     micDeviceId:    lobbyState.micDeviceId,
@@ -61,7 +60,7 @@ export default function RoomPage() {
     initialVideoOn: lobbyState.videoEnabled,
   });
 
-  const { remoteStreams, peerQualities } = useWebRTC({ roomId, userName, localStream });
+  const { remoteStreams, peerQualities, replaceTrack } = useWebRTC({ roomId, userName, localStream });
 
   const {
     ambientEnabled,
@@ -157,16 +156,29 @@ export default function RoomPage() {
       const stream = await initMedia();
       if (!stream || !socket) return;
 
+      // Connect socket now (was autoConnect: false)
+      if (!socket.connected) {
+        socket.connect();
+        await new Promise((resolve) => {
+          if (socket.connected) { resolve(); return; }
+          socket.once('connect', resolve);
+          setTimeout(resolve, 5000);
+        });
+      }
+
       const tokenKey = `joinToken:${roomId}`;
       const joinToken = sessionStorage.getItem(tokenKey);
       sessionStorage.removeItem(tokenKey);
 
-      if (!socket.connected) socket.connect();
       socket.emit('join-room', { roomId, userName, joinToken });
       clearLobbyState();
       setJoined(true);
     };
     setup();
+    return () => {
+      stopAllMedia();
+      socket?.disconnect();
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -209,14 +221,14 @@ export default function RoomPage() {
     const handlePeerAudioToggle = ({ socketId, enabled }) => {
       setPeers((prev) => ({
         ...prev,
-        [socketId]: { ...prev[socketId], audioEnabled: enabled },
+        [socketId]: { ...(prev[socketId] || {}), audioEnabled: enabled },
       }));
     };
 
     const handlePeerVideoToggle = ({ socketId, enabled }) => {
       setPeers((prev) => ({
         ...prev,
-        [socketId]: { ...prev[socketId], videoEnabled: enabled },
+        [socketId]: { ...(prev[socketId] || {}), videoEnabled: enabled },
       }));
     };
 
@@ -251,25 +263,48 @@ export default function RoomPage() {
     };
   }, [socket, navigate, disconnectPeerAudio]);
 
-  const handleToggleAudio = () => {
-    const enabled = toggleAudio();
-    socket?.emit('toggle-audio', { roomId, enabled });
-  };
+  const handleToggleAudio = useCallback(() => {
+    toggleAudio();
+    socket?.emit('toggle-audio', { roomId, enabled: !audioEnabled });
+  }, [toggleAudio, audioEnabled, socket, roomId]);
 
-  const handleToggleVideo = () => {
-    const enabled = toggleVideo();
-    socket?.emit('toggle-video', { roomId, enabled });
-  };
+  const handleToggleVideo = useCallback(() => {
+    toggleVideo();
+    socket?.emit('toggle-video', { roomId, enabled: !videoEnabled });
+  }, [toggleVideo, videoEnabled, socket, roomId]);
 
-  const handleToggleScreen = async () => {
-    if (isScreenSharing) {
-      stopScreenShare();
+  const handleToggleScreen = useCallback(async () => {
+    if (screenSharing) {
+      if (screenStreamRef.current) {
+        screenStreamRef.current.getTracks().forEach((t) => t.stop());
+        screenStreamRef.current = null;
+      }
+      const cameraTrack = localStream?.getVideoTracks()[0];
+      if (cameraTrack) await replaceTrack(cameraTrack, cameraTrack);
+      setScreenSharing(false);
       socket?.emit('screen-share-stopped', { roomId });
     } else {
-      const stream = await startScreenShare();
-      if (stream) socket?.emit('screen-share-started', { roomId });
+      try {
+        const screenStream = await navigator.mediaDevices.getDisplayMedia({
+          video: { cursor: 'always' },
+          audio: false,
+        });
+        screenStreamRef.current = screenStream;
+        const screenTrack = screenStream.getVideoTracks()[0];
+
+        const cameraTrack = localStream?.getVideoTracks()[0];
+        if (cameraTrack) await replaceTrack(cameraTrack, screenTrack);
+
+        screenTrack.onended = () => { handleToggleScreen(); };
+        setScreenSharing(true);
+        socket?.emit('screen-share-started', { roomId });
+      } catch (err) {
+        if (err.name !== 'NotAllowedError') {
+          console.error('[RoomPage] Screen share error:', err);
+        }
+      }
     }
-  };
+  }, [screenSharing, roomId, socket, localStream, replaceTrack]);
 
   const handleLeave = useCallback(() => {
     stopAllMedia();
@@ -350,7 +385,7 @@ export default function RoomPage() {
           peers={peers}
           localAudioEnabled={audioEnabled}
           localVideoEnabled={videoEnabled}
-          localScreenSharing={isScreenSharing}
+          localScreenSharing={screenSharing}
           onClose={() => setSidebarOpen(false)}
         />
 
@@ -371,7 +406,7 @@ export default function RoomPage() {
           <ControlsBar
             audioEnabled={audioEnabled}
             videoEnabled={videoEnabled}
-            screenSharing={isScreenSharing}
+            screenSharing={screenSharing}
             ambientEnabled={ambientEnabled}
             onToggleAudio={handleToggleAudio}
             onToggleVideo={handleToggleVideo}

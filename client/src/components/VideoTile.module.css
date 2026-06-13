@@ -22,10 +22,7 @@
 
 .speaking {
   border-color: var(--accent) !important;
-  box-shadow:
-    0 0 0 2px var(--accent-glow),
-    0 0 20px var(--accent-glow),
-    var(--shadow-md);
+  box-shadow: var(--shadow-md);
 }
 
 .speakingRing {
@@ -122,10 +119,8 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   padding: 3px 8px;
   max-width: 100%;
@@ -159,9 +154,8 @@
   top: 8px;
   left: 8px;
   font-size: 13px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(8px);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   border-radius: var(--radius-xs);
   padding: 3px 6px;
   z-index: 2;

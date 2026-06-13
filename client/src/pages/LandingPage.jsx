@@ -1,20 +1,28 @@
 // client/src/pages/LandingPage.jsx
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './LandingPage.module.css';
 import { createRoom } from '../services/roomApi';
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const cardRef = useRef(null);
+
   const [userName, setUserName]   = useState('');
   const [roomId, setRoomId]       = useState('');
   const [roomName, setRoomName]   = useState('');
   const [password, setPassword]   = useState('');
-  const [mode, setMode]           = useState('create'); // 'create' | 'join'
+  const [mode, setMode]           = useState('create');
   const [loading, setLoading]     = useState(false);
   const [error, setError]         = useState('');
 
   const clearError = () => setError('');
+
+  const selectMode = (nextMode) => {
+    setMode(nextMode);
+    clearError();
+    cardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  };
 
   const handleCreate = async () => {
     if (!userName.trim()) return;
@@ -27,12 +35,7 @@ export default function LandingPage() {
         password: password.trim() || undefined,
       });
 
-      // Store join token in sessionStorage - not in URL (security)
-      // The lobby reuses this token (creator flow); RoomPage clears it after use.
       sessionStorage.setItem(`joinToken:${roomId}`, joinToken);
-
-      // Go to the pre-join lobby (not the room directly) so the user can
-      // configure devices, preview their camera, and enable blur first.
       navigate(`/lobby/${roomId}?name=${encodeURIComponent(userName.trim())}`);
     } catch (err) {
       setError(err.message || 'Failed to create room. Please try again.');
@@ -43,8 +46,6 @@ export default function LandingPage() {
 
   const handleJoin = async () => {
     if (!userName.trim() || !roomId.trim()) return;
-    // Defer validation, password prompt, and token issuance to the lobby —
-    // the lobby shows the room info and handles password-protected rooms.
     navigate(`/lobby/${roomId.trim()}?name=${encodeURIComponent(userName.trim())}`);
   };
 
@@ -55,58 +56,84 @@ export default function LandingPage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.bg}>
-        <div className={styles.orb1} />
-        <div className={styles.orb2} />
-        <div className={styles.grid} />
-      </div>
-
-      <nav className={styles.nav}>
-        <div className={styles.logo}>
-          <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
-            <circle cx="14" cy="14" r="13" stroke="var(--accent)" strokeWidth="1.5" />
-            <path d="M8 14 Q14 6 20 14 Q14 22 8 14Z" fill="var(--accent)" opacity="0.8" />
+      <header className={styles.nav}>
+        <div className={styles.navLogo}>
+          <svg width="22" height="22" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+            <circle cx="14" cy="14" r="13" stroke="#3b82f6" strokeWidth="1.5" />
+            <path d="M8 14 Q14 6 20 14 Q14 22 8 14Z" fill="#3b82f6" opacity="0.9" />
           </svg>
           <span>ConnectWave</span>
         </div>
-      </nav>
+        <button type="button" className={styles.signIn}>Sign in</button>
+      </header>
 
-      <main className={styles.main}>
-        <div className={styles.hero}>
-          <div className={styles.badge}>✦ WebRTC Powered</div>
-          <h1 className={styles.title}>
-            Video calls,<br />
-            <em>reimagined.</em>
+      <section className={styles.left}>
+        <div className={styles.heroInner}>
+          <span className={styles.pill}>No account required · Free forever</span>
+
+          <h1 className={styles.headline}>
+            Video calls that
+            <br />
+            just <span className={styles.accentWord}>work.</span>
           </h1>
-          <p className={styles.subtitle}>
-            Peer-to-peer video chat with room-based communication.
-            No accounts, no friction — just connect.
-          </p>
-        </div>
 
-        <div className={styles.card}>
-          <div className={styles.tabs}>
+          <p className={styles.subtitle}>
+            Connect instantly with anyone. No downloads, no accounts, no friction — just share a link and start talking.
+          </p>
+
+          <div className={styles.ctaRow}>
             <button
-              className={`${styles.tab} ${mode === 'create' ? styles.active : ''}`}
-              onClick={() => { setMode('create'); clearError(); }}
+              type="button"
+              className={styles.heroPrimary}
+              onClick={() => selectMode('create')}
             >
-              Create Room
+              Start a meeting
             </button>
             <button
-              className={`${styles.tab} ${mode === 'join' ? styles.active : ''}`}
+              type="button"
+              className={`${styles.heroSecondary} ${mode === 'join' ? styles.heroSecondaryActive : ''}`}
+              onClick={() => selectMode('join')}
+            >
+              Join with a code
+            </button>
+          </div>
+
+          <div className={styles.socialProof}>
+            <div className={styles.avatarStack}>
+              <div className={`${styles.avatar} ${styles.avatarBlue}`}>A</div>
+              <div className={`${styles.avatar} ${styles.avatarPurple}`}>T</div>
+              <div className={`${styles.avatar} ${styles.avatarGreen}`}>D</div>
+            </div>
+            <span>Trusted by students, teams, and developers worldwide.</span>
+          </div>
+        </div>
+      </section>
+
+      <section className={styles.right}>
+        <div className={styles.card} ref={cardRef}>
+          <h2 className={styles.cardTitle}>Get started</h2>
+          <p className={styles.cardSubtitle}>Create a room or join an existing one</p>
+
+          <div className={styles.tabs}>
+            <button
+              type="button"
+              className={`${styles.tab} ${mode === 'create' ? styles.tabActive : ''}`}
+              onClick={() => { setMode('create'); clearError(); }}
+            >
+              Create
+            </button>
+            <button
+              type="button"
+              className={`${styles.tab} ${mode === 'join' ? styles.tabActive : ''}`}
               onClick={() => { setMode('join'); clearError(); }}
             >
-              Join Room
+              Join
             </button>
           </div>
 
           <div className={styles.form}>
-            {error && (
-              <div className={styles.errorBanner}>{error}</div>
-            )}
-
             <div className={styles.field}>
-              <label className={styles.label}>Your Name</label>
+              <label className={styles.label}>Your name</label>
               <input
                 className={styles.input}
                 type="text"
@@ -136,7 +163,9 @@ export default function LandingPage() {
 
             {mode === 'create' && (
               <div className={styles.field}>
-                <label className={styles.label}>Room Name <span className={styles.optional}>(optional)</span></label>
+                <label className={styles.label}>
+                  Room name <span className={styles.optional}>(optional)</span>
+                </label>
                 <input
                   className={styles.input}
                   type="text"
@@ -167,32 +196,36 @@ export default function LandingPage() {
             </div>
 
             <button
-              className={styles.btn}
+              type="button"
+              className={styles.submitBtn}
               onClick={mode === 'create' ? handleCreate : handleJoin}
               disabled={loading || !userName.trim() || (mode === 'join' && !roomId.trim())}
             >
               {loading
                 ? (mode === 'create' ? 'Creating...' : 'Joining...')
-                : (mode === 'create' ? 'Create Room →' : 'Join Room →')}
+                : (mode === 'create' ? 'Create meeting' : 'Join meeting')}
             </button>
+
+            {error && (
+              <div className={styles.errorBanner}>{error}</div>
+            )}
           </div>
         </div>
+      </section>
 
-        <div className={styles.features}>
-          {[
-            { icon: '⚡', title: 'P2P Direct',    desc: 'Zero-latency WebRTC connections' },
-            { icon: '🔒', title: 'Private Rooms',  desc: 'Password-protect your rooms' },
-            { icon: '💬', title: 'Live Chat',      desc: 'Text alongside your video call' },
-            { icon: '🖥️', title: 'Screen Share',   desc: 'Share your screen instantly' },
-          ].map((f) => (
-            <div key={f.title} className={styles.feature}>
-              <span className={styles.featureIcon}>{f.icon}</span>
-              <strong>{f.title}</strong>
-              <p>{f.desc}</p>
-            </div>
-          ))}
-        </div>
-      </main>
+      <footer className={styles.featureStrip}>
+        {[
+          { icon: '🔒', label: 'End-to-end encrypted' },
+          { icon: '⚡', label: 'Sub-100ms latency' },
+          { icon: '🖥️', label: 'Screen sharing' },
+          { icon: '💬', label: 'Live chat' },
+        ].map((f) => (
+          <div key={f.label} className={styles.featureItem}>
+            <span className={styles.featureIcon}>{f.icon}</span>
+            <span>{f.label}</span>
+          </div>
+        ))}
+      </footer>
     </div>
   );
 }

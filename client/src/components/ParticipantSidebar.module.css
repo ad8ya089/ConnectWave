@@ -19,8 +19,6 @@
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
 }
 
 .header {
@@ -69,7 +67,7 @@
 
 .sortBtn:hover, .sortActive {
   color: var(--accent);
-  border-color: var(--accent-glow);
+  border-color: var(--accent);
 }
 
 .closeBtn {

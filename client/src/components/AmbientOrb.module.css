@@ -31,7 +31,7 @@
   border: 2px solid rgba(255, 255, 255, 0.1);
   background: var(--surface-2);
   box-shadow:
-    0 0 0 0 rgba(0, 210, 190, 0),
+    0 0 0 0 rgba(0, 102, 204, 0),
     0 4px 20px rgba(0, 0, 0, 0.4);
   transition:
     box-shadow 0.3s ease,
@@ -39,10 +39,10 @@
 }
 
 .orb.moving .videoWrapper {
-  border-color: rgba(0, 210, 190, calc(var(--glow-intensity) * 0.7));
+  border-color: rgba(0, 102, 204, calc(var(--glow-intensity) * 0.7));
   box-shadow:
-    0 0 0 calc(var(--glow-intensity) * 12px) rgba(0, 210, 190, calc(var(--glow-intensity) * 0.12)),
-    0 0 calc(var(--glow-intensity) * 32px) rgba(0, 210, 190, calc(var(--glow-intensity) * 0.25)),
+    0 0 0 calc(var(--glow-intensity) * 12px) rgba(0, 102, 204, calc(var(--glow-intensity) * 0.12)),
+    0 0 calc(var(--glow-intensity) * 32px) rgba(0, 102, 204, calc(var(--glow-intensity) * 0.25)),
     0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
@@ -59,7 +59,7 @@
   position: absolute;
   inset: -4px;
   border-radius: 50%;
-  border: 2px solid rgba(0, 210, 190, 0.6);
+  border: 2px solid rgba(0, 102, 204, 0.6);
   pointer-events: none;
   transition: opacity 0.2s ease, transform 0.2s ease;
 }
@@ -73,7 +73,7 @@
   width: 120px;
   height: 120px;
   border-radius: 50%;
-  border: 1.5px solid rgba(0, 210, 190, 0.2);
+  border: 1.5px solid rgba(0, 102, 204, 0.2);
   animation: breathe 4s ease-in-out infinite;
   pointer-events: none;
 }
@@ -180,6 +180,6 @@
 }
 
 @keyframes reactionRipple {
-  0%   { box-shadow: 0 0 0 0 rgba(0, 210, 190, 0.6), 0 4px 20px rgba(0,0,0,0.4); }
-  100% { box-shadow: 0 0 0 20px rgba(0, 210, 190, 0), 0 4px 20px rgba(0,0,0,0.4); }
+  0%   { box-shadow: 0 0 0 0 rgba(0, 102, 204, 0.6), 0 4px 20px rgba(0,0,0,0.4); }
+  100% { box-shadow: 0 0 0 20px rgba(0, 102, 204, 0), 0 4px 20px rgba(0,0,0,0.4); }
 }

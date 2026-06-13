@@ -2,31 +2,119 @@
 version: "3.9"
 
 services:
-  redis:
-    ports: []   # Do NOT expose Redis port in production
+  postgres:
+    ports: []
     environment:
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      POSTGRES_USER:     ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB:       ${POSTGRES_DB}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c max_connections=100
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c maintenance_work_mem=64MB
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,env"
+
+  redis:
+    ports: []
     command: >
       redis-server
       --appendonly yes
       --maxmemory 512mb
       --maxmemory-policy allkeys-lru
       --requirepass ${REDIS_PASSWORD}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,env"
 
   signaling:
+    ports: []
     environment:
-      NODE_ENV: production
-      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
-      CLIENT_URL: ${CLIENT_URL}
-      MAX_PEERS_PER_ROOM: ${MAX_PEERS_PER_ROOM:-12}
-    ports: []   # Do NOT expose signaling port directly - go through nginx only
+      NODE_ENV:           production
+      REDIS_URL:          ${REDIS_URL}
+      CLIENT_URL:         ${CLIENT_URL}
+      JWT_SECRET:         ${JWT_SECRET}
+      MAX_PEERS_PER_ROOM: 12
     deploy:
-      replicas: 2   # Run two signaling instances
+      replicas: 2
       restart_policy:
         condition: on-failure
-        max_attempts: 3
+        max_attempts: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,env"
+
+  room-service:
+    ports: []
+    environment:
+      NODE_ENV:     production
+      REDIS_URL:    ${REDIS_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET:   ${JWT_SECRET}
+      CLIENT_URL:   ${CLIENT_URL}
+      TURN_SECRET:  ${TURN_SECRET}
+      TURN_HOST:    ${TURN_HOST}
+      TURN_PORT:    ${TURN_PORT}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,env"
+
+  chat-service:
+    ports: []
+    environment:
+      NODE_ENV:     production
+      REDIS_URL:    ${REDIS_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET:   ${JWT_SECRET}
+      CLIENT_URL:   ${CLIENT_URL}
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,env"
 
   nginx:
     ports:
       - "80:80"
       - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./client/dist:/usr/share/nginx/html:ro
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /var/www/certbot:/var/www/certbot:ro
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service,env"
+
+  coturn:
+    environment:
+      TURN_SECRET: ${TURN_SECRET}
+    command: >
+      -c /etc/coturn/turnserver.conf
+      --static-auth-secret=${TURN_SECRET}
+      --external-ip=${TURN_HOST}
+
+volumes:
+  postgres_data:
+  redis_data:

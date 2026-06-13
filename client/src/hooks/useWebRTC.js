@@ -278,5 +278,20 @@ export function useWebRTC({ roomId, userName, localStream }) {
     };
   }, [socket, roomId, createPeer, removePeer, stopStatsPolling]);
 
-  return { remoteStreams, peerQualities };
+  // Replace a track in all active peer connections.
+  // Used by screen sharing: swaps the camera video track for the screen video track.
+  const replaceTrack = useCallback(async (oldTrack, newTrack) => {
+    for (const pc of Object.values(peersRef.current)) {
+      const sender = pc.getSenders().find((s) => s.track?.kind === oldTrack.kind);
+      if (sender) {
+        try {
+          await sender.replaceTrack(newTrack);
+        } catch (err) {
+          console.warn("[WebRTC] replaceTrack failed:", err.message);
+        }
+      }
+    }
+  }, []);
+
+  return { remoteStreams, peerQualities, replaceTrack };
 }

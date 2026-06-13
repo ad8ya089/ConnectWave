@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io as ioClient } from 'socket.io-client';
 import { fetchHistory }   from '../services/chatApi';
 
-const CHAT_SERVICE_URL = import.meta.env.VITE_CHAT_SERVICE_URL || 'http://localhost:4002';
+const CHAT_SERVICE_URL = import.meta.env.VITE_CHAT_SERVICE_URL || window.location.origin;
 
 // How long after the user stops typing before we emit typing-stop (ms)
 const TYPING_DEBOUNCE_MS = 800;
